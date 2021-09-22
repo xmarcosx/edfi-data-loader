@@ -1,17 +1,55 @@
+import base64
 import os
 
-from flask import Flask, render_template
+import requests
+from flask import Flask, request, jsonify
+from google.cloud import storage
+
+
+BASE_URL = os.environ.get('BASE_URL')
+API_KEY = os.environ.get('API_KEY')
+API_SECRET = os.environ.get('API_SECRET')
 
 # pylint: disable=C0103
 app = Flask(__name__)
 
+def get_access_token():
+    credentials_concatenated = ':'.join((API_KEY, API_SECRET))
+    credentials_encoded = base64.b64encode(credentials_concatenated.encode('utf-8'))
+    access_url = f'{BASE_URL}/oauth/token'
+
+    access_headers = {
+        'Authorization': b'Basic ' + credentials_encoded
+    }
+
+    access_params = {
+        'grant_type': 'client_credentials'
+    }
+
+    response = requests.post(access_url, headers=access_headers, data=access_params)
+
+    if response.ok:
+        response_json = response.json()
+        print(response_json['access_token'])
+    else:
+        raise Exception("Failed to retrieve access token")
+
+def get_file():
+    storage_client = storage.Client()
+
 
 @app.route('/')
-def hello():
+def main():
     """Return a friendly HTTP greeting."""
     message = "It's running!"
 
     return message
+
+@app.route('/', methods=['POST'])
+def load_data():
+    data = request.json
+    #return jsonify(data)
+    return data['templateName']
 
 if __name__ == '__main__':
     server_port = os.environ.get('PORT', '8080')
